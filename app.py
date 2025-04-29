@@ -5,6 +5,8 @@ import joblib
 # Load model and scaler
 model = joblib.load("heart_model.pkl")
 scaler = joblib.load("scaler.pkl")
+with open("feature_columns.txt", "r") as f:
+    feature_names = f.read().split(",")
 
 st.title("💓 Heart Disease Prediction App")
 st.markdown("Provide the following details to check your heart disease risk:")
@@ -22,18 +24,30 @@ exang = st.selectbox("Exercise Induced Angina", ["Yes", "No"])
 oldpeak = st.slider("ST Depression", 0.0, 6.0, 1.0)
 slope = st.selectbox("Slope of Peak Exercise ST", ["Upsloping", "Flat", "Downsloping"])
 
-# Encoding
-sex = 1 if sex == "Male" else 0
-chest_pain_map = {"Typical Angina": 0, "Atypical Angina": 1, "Non-anginal Pain": 2, "Asymptomatic": 3}
-fbs = 1 if fbs == "Yes" else 0
-restecg_map = {"Normal": 0, "ST-T Abnormality": 1, "Left Ventricular Hypertrophy": 2}
-exang = 1 if exang == "Yes" else 0
-slope_map = {"Upsloping": 0, "Flat": 1, "Downsloping": 2}
+# Basic encodings
+data = {
+    "Age": age,
+    "RestingBP": bp,
+    "Cholesterol": chol,
+    "FastingBS": 1 if fbs == "Yes" else 0,
+    "MaxHR": thalach,
+    "Oldpeak": oldpeak,
+}
 
-input_data = np.array([[age, sex, chest_pain_map[chest_pain], bp, chol, fbs,
-                        restecg_map[restecg], thalach, exang, oldpeak, slope_map[slope]]])
+# One-hot encodings
+data[f"Sex_{sex}"] = 1
+data[f"ChestPainType_{chest_pain}"] = 1
+data[f"RestingECG_{restecg}"] = 1
+data[f"ExerciseAngina_{exang}"] = 1
+data[f"Slope_{slope}"] = 1
 
-input_scaled = scaler.transform(input_data)
+# Prepare final input array
+final_input = np.zeros(len(feature_names))
+for idx, col in enumerate(feature_names):
+    final_input[idx] = data.get(col, 0)
+
+# Scale and Predict
+input_scaled = scaler.transform([final_input])
 prediction = model.predict(input_scaled)[0]
 confidence = model.predict_proba(input_scaled)[0][1]
 
